@@ -14,6 +14,7 @@ import aiohttp
 import asyncio
 import json
 import re
+from html import unescape
 
 
 # ---------------- Mermaid 文本清理（保留原功能） ----------------
@@ -122,8 +123,9 @@ class Action:
     # ---------- helpers ----------
 
     def _extract_mermaid_code_from_response(self, response_text: str) -> str:
-        m = self.mermaid_pattern.search(response_text or "")
-        return (m.group(1) if m else (response_text or "")).strip()
+        text = unescape(response_text or "")
+        m = self.mermaid_pattern.search(text)
+        return (m.group(1) if m else text).strip()
 
     def _extract_content_from_body(self, body: dict) -> Optional[str]:
         content: Optional[str] = None
@@ -191,7 +193,7 @@ class Action:
             url = f"{base}/api/validate/batch"
         payload = {
             "items": [
-                {"id": str(i), "code": block}
+                {"id": str(i), "code": unescape(block)}
                 for i, block in enumerate(blocks)
             ]
         }
@@ -215,12 +217,11 @@ class Action:
 
         return data["results"]
 
-    async def _single_fix(self, block_code: str, actual_error_text: str, history_text: str = "") -> str:
+    async def _single_fix(self, block_code: str, actual_error_text: str) -> str:
         user_prompt = (
             "Please fix the following Mermaid code using the real error from validator.\n\n"
-            f"--- CODE ---\n{block_code}\n\n"
-            f"--- VALIDATOR ERROR ---\n{actual_error_text}\n\n"
-            f"--- PREVIOUS ATTEMPTS (for context, avoid repeating same mistakes) ---\n{history_text or '(none)'}\n\n"
+            f"--- CODE ---\n{unescape(block_code)}\n\n"
+            f"--- VALIDATOR ERROR ---\n{unescape(actual_error_text)}\n\n"
             "Output only corrected code in ```mermaid fences."
         )
         messages = [
@@ -270,9 +271,8 @@ class Action:
             return None
 
         current_text = content
-        total_fixed_count = 0
-        # 每个 block 的跨轮历史上下文：[{round, error, before, after}]
-        attempt_history: Dict[int, List[Dict[str, str]]] = {}
+        initial_invalid_count: Optional[int] = None
+        invalid_seen_indices: set[int] = set()
 
         for round_idx in range(1, self.valves.max_rounds + 1):
             matches = list(self.mermaid_pattern.finditer(current_text))
@@ -297,6 +297,10 @@ class Action:
             for i, r in enumerate(results):
                 if not r.get("valid", False):
                     invalid_indices.append(i)
+                    invalid_seen_indices.add(i)
+
+            if initial_invalid_count is None:
+                initial_invalid_count = len(invalid_indices)
 
             if not invalid_indices:
                 await self._status(
@@ -314,37 +318,15 @@ class Action:
 
             async def fix_one(i: int):
                 err = str(results[i].get("error") or "Unknown validator error")
-
-                # 组装该 block 的历史上下文（跨轮记忆）
-                hist_items = attempt_history.get(i, [])
-                hist_lines = []
-                for h in hist_items[-6:]:
-                    hist_lines.append(
-                        f"[Round {h.get('round','?')}] error={h.get('error','')}\n"
-                        f"before:\n{h.get('before','')}\n"
-                        f"after:\n{h.get('after','')}"
-                    )
-                history_text = "\n\n".join(hist_lines)
-
-                fixed = await self._single_fix(blocks[i], err, history_text)
+                fixed = await self._single_fix(blocks[i], err)
                 return i, fixed, err
 
             fixed_map: Dict[int, str] = {}
             try:
                 fixed_pairs = await asyncio.gather(*(fix_one(i) for i in invalid_indices))
-                for i, fixed, err in fixed_pairs:
+                for i, fixed, _err in fixed_pairs:
                     if fixed:
                         fixed_map[i] = fixed
-
-                    # 记录跨轮历史（让下一轮携带上下文）
-                    attempt_history.setdefault(i, []).append(
-                        {
-                            "round": str(round_idx),
-                            "error": err,
-                            "before": blocks[i],
-                            "after": fixed or "",
-                        }
-                    )
             except Exception as e:
                 await self._notify(__event_emitter__, "error", f"调用修复模型失败：{e}")
                 return None
@@ -353,7 +335,6 @@ class Action:
                 await self._notify(__event_emitter__, "warning", "本轮未得到有效修复结果，停止循环。")
                 break
 
-            total_fixed_count += len(fixed_map)
             current_text = self._replace_blocks(current_text, matches, fixed_map)
 
             await __event_emitter__({"type": "replace", "data": {"content": current_text}})
@@ -374,13 +355,13 @@ class Action:
             await self._notify(
                 __event_emitter__,
                 "warning",
-                f"自动循环已结束：仍有 {len(final_invalid)} 个 Mermaid 片段存在错误（已到最大轮次或无法继续修复）。",
+                f"自动循环已结束：初始错误 {initial_invalid_count or 0}，当前仍有 {len(final_invalid)} 个 Mermaid 片段存在错误。",
             )
         else:
             await self._notify(
                 __event_emitter__,
                 "success",
-                f"自动修复完成：累计处理 {total_fixed_count} 个错误片段，当前全部通过检测。",
+                f"自动修复完成：初始错误 {initial_invalid_count or 0}，已修复 {len(invalid_seen_indices)} 个片段，当前全部通过检测。",
             )
 
         await self._status(__event_emitter__, "Mermaid 自动修复流程结束。", done=True, hidden=True)
