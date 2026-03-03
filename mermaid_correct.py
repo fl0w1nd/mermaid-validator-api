@@ -79,7 +79,7 @@ class Action:
     class Valves(BaseModel):
         validator_api_url: str = Field(
             default="https://YOUR-MERMAID-VALIDATOR.example.com",
-            description="External validator API base URL, e.g. https://xxx.workers.dev",
+            description="External validator API base URL, e.g. https://your-app.vercel.app or https://your-app.vercel.app/api",
         )
         validator_timeout: int = Field(
             default=20,
@@ -184,7 +184,11 @@ class Action:
                 return data["choices"][0]["message"]["content"]
 
     async def _validate_batch(self, blocks: List[str]) -> List[Dict[str, Any]]:
-        url = self.valves.validator_api_url.rstrip("/") + "/validate/batch"
+        base = self.valves.validator_api_url.rstrip("/")
+        if base.endswith("/api"):
+            url = f"{base}/validate/batch"
+        else:
+            url = f"{base}/api/validate/batch"
         payload = {
             "items": [
                 {"id": str(i), "code": block}
