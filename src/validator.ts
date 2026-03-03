@@ -1,4 +1,4 @@
-import { JSDOM } from 'jsdom';
+import { Window } from 'happy-dom';
 import type mermaidType from 'mermaid';
 
 let mermaidInstance: typeof mermaidType | null = null;
@@ -6,19 +6,17 @@ let mermaidInstance: typeof mermaidType | null = null;
 async function getMermaid(): Promise<typeof mermaidType> {
   if (mermaidInstance) return mermaidInstance;
 
-  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+  const window = new Window({ url: 'http://localhost' });
   const g = globalThis as Record<string, unknown>;
 
-  // Some properties on globalThis are read-only getters in newer Node versions,
-  // so use Object.defineProperty to overwrite them.
   const props: Record<string, unknown> = {
-    window: dom.window,
-    document: dom.window.document,
-    navigator: dom.window.navigator,
-    DOMParser: dom.window.DOMParser,
-    XMLSerializer: dom.window.XMLSerializer,
-    HTMLElement: dom.window.HTMLElement,
-    SVGElement: dom.window['SVGElement' as keyof typeof dom.window],
+    window,
+    document: window.document,
+    navigator: window.navigator,
+    DOMParser: window.DOMParser,
+    XMLSerializer: window.XMLSerializer,
+    HTMLElement: window.HTMLElement,
+    SVGElement: window.SVGElement,
     requestAnimationFrame: (cb: () => void) => setTimeout(cb, 0),
     cancelAnimationFrame: clearTimeout,
   };

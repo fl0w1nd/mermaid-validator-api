@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import app from './app.js';
 
-function post(path: string, body: unknown) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function post(path: string, body: unknown): Promise<{ status: number; json: () => Promise<any> }> {
   return app.request(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
