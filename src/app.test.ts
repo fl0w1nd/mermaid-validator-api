@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import app from './app';
+import app from './app.js';
 
 function post(path: string, body: unknown) {
   return app.request(path, {

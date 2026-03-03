@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { validateMermaidCode } from './validator';
+import { validateMermaidCode } from './validator.js';
 
 type ValidateItemInput = {
   id?: string;
