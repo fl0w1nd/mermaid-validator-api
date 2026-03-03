@@ -1,0 +1,24 @@
+{
+  "name": "mermaid-validator-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.10",
+    "hono": "^4.8.3",
+    "jsdom": "^28.1.0",
+    "mermaid": "^11.12.3"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.0",
+    "@types/node": "^25.3.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.2",
+    "vitest": "^4.0.18"
+  }
+}
