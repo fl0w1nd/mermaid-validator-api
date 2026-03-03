@@ -2,5 +2,10 @@
   "framework": null,
   "installCommand": "pnpm install",
   "buildCommand": null,
-  "outputDirectory": null
+  "outputDirectory": null,
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 60
+    }
+  }
 }
