@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mermaid Validator</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+  window.__mermaid = mermaid;
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --border: #e2e5ea;
+    --text: #1a1d23;
+    --text-secondary: #6c7589;
+    --accent: #6366f1;
+    --accent-light: #eef2ff;
+    --accent-hover: #4f46e5;
+    --green: #059669;
+    --green-bg: #ecfdf5;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --radius: 12px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-lg: 0 4px 24px rgba(0,0,0,0.08);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding: 0.875rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .header-left h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: -0.01em;
+  }
+
+  .header-left h1 img { width: 26px; height: 26px; }
+
+  .header-left .separator {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+  }
+
+  .header-left p {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+  }
+
+  nav { display: flex; gap: 0.25rem; }
+
+  nav a {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.375rem 0.875rem;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+    font-weight: 500;
+  }
+
+  nav a:hover { color: var(--accent); background: var(--accent-light); }
+  nav a.active { color: var(--accent); background: var(--accent-light); }
+
+  @media (max-width: 640px) {
+    header { flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+    .header-left p, .header-left .separator { display: none; }
+    .container { padding: 1rem; }
+  }
+
+  /* ── Editor Layout ── */
+  .editor-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .editor-wrap { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .panel:focus-within {
+    box-shadow: var(--shadow-lg), 0 0 0 2px rgba(99,102,241,0.15);
+    border-color: rgba(99,102,241,0.3);
+  }
+
+  .panel-header {
+    padding: 0.625rem 1rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(to bottom, var(--surface), var(--bg));
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .panel-header::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+
+  /* ── Textarea ── */
+  textarea {
+    width: 100%;
+    min-height: 380px;
+    padding: 1rem 1.25rem;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    line-height: 1.75;
+    color: var(--text);
+    background: var(--surface);
+    tab-size: 2;
+    flex: 1;
+  }
+
+  textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.5;
+  }
+
+  /* ── Preview ── */
+  #preview {
+    min-height: 380px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    flex: 1;
+    background: var(--surface);
+  }
+
+  #preview .placeholder {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    opacity: 0.5;
+    user-select: none;
+  }
+
+  #preview svg { max-width: 100%; height: auto; }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+
+  button {
+    padding: 0.5rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(99,102,241,0.3);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 2px 6px rgba(99,102,241,0.4);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: #e8eaef;
+    border-color: #d1d5db;
+  }
+
+  .toolbar-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 0.25rem;
+  }
+
+  /* ── Status ── */
+  #status {
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    display: none;
+    font-weight: 500;
+    margin-left: auto;
+  }
+
+  #status.valid {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--green-bg);
+    color: var(--green);
+  }
+
+  #status.invalid {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--red-bg);
+    color: var(--red);
+  }
+
+  #error-detail {
+    display: none;
+    margin-top: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: var(--red-bg);
+    border: 1px solid #fecaca;
+    border-radius: var(--radius);
+    font-family: 'SF Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--red);
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+  }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="header-left">
+      <h1><img src="/favicon.svg" alt="">Mermaid Validator</h1>
+      <div class="separator"></div>
+      <p>输入 Mermaid 代码，实时预览并验证语法</p>
+    </div>
+    <nav>
+      <a href="/" class="active">编辑器</a>
+      <a href="/docs.html">API 文档</a>
+    </nav>
+  </header>
+
+  <div class="editor-wrap">
+    <div class="panel">
+      <div class="panel-header">编辑器</div>
+      <textarea id="code" spellcheck="false" placeholder="在此输入 Mermaid 代码…">graph TD
+  A[开始] --> B{判断}
+  B -->|是| C[执行]
+  B -->|否| D[结束]
+  C --> D</textarea>
+    </div>
+    <div class="panel">
+      <div class="panel-header">预览</div>
+      <div id="preview"><span class="placeholder">点击「渲染」查看图表</span></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-primary" onclick="renderDiagram()">▶ 渲染</button>
+    <button class="btn-secondary" onclick="validateCode()">✓ 验证语法</button>
+    <button class="btn-secondary" onclick="clearAll()">✕ 清空</button>
+    <span id="status"></span>
+  </div>
+  <div id="error-detail"></div>
+
+  <footer>
+    Powered by <a href="https://mermaid.js.org/" target="_blank">Mermaid.js</a> &
+    <a href="https://hono.dev/" target="_blank">Hono</a> ·
+    <a href="https://github.com/fl0w1nd/mermaid-validator-api" target="_blank">GitHub</a>
+  </footer>
+</div>
+
+<script>
+  let renderCounter = 0;
+
+  async function renderDiagram() {
+    const code = document.getElementById('code').value.trim();
+    const preview = document.getElementById('preview');
+    if (!code) {
+      preview.innerHTML = '<span class="placeholder">请输入 Mermaid 代码</span>';
+      return;
+    }
+    try {
+      const id = `mermaid-${++renderCounter}`;
+      const { svg } = await window.__mermaid.render(id, code);
+      preview.innerHTML = svg;
+    } catch (e) {
+      preview.innerHTML = `<span class="placeholder" style="color:var(--red)">渲染失败：${escapeHtml(e.message || String(e))}</span>`;
+    }
+  }
+
+  async function validateCode() {
+    const code = document.getElementById('code').value.trim();
+    const status = document.getElementById('status');
+    const detail = document.getElementById('error-detail');
+
+    if (!code) {
+      status.className = 'invalid';
+      status.textContent = '请输入代码';
+      status.style.display = 'inline-flex';
+      detail.style.display = 'none';
+      return;
+    }
+
+    status.className = '';
+    status.textContent = '验证中…';
+    status.style.display = 'inline-flex';
+    detail.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+
+      if (data.valid) {
+        status.className = 'valid';
+        status.textContent = '✓ 语法正确';
+      } else {
+        status.className = 'invalid';
+        status.textContent = '✗ 语法错误';
+        detail.textContent = data.error || 'Unknown error';
+        detail.style.display = 'block';
+      }
+    } catch (e) {
+      status.className = 'invalid';
+      status.textContent = '请求失败';
+      detail.textContent = e.message;
+      detail.style.display = 'block';
+    }
+  }
+
+  function clearAll() {
+    document.getElementById('code').value = '';
+    document.getElementById('preview').innerHTML = '<span class="placeholder">点击「渲染」查看图表</span>';
+    document.getElementById('status').style.display = 'none';
+    document.getElementById('error-detail').style.display = 'none';
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  window.addEventListener('load', () => setTimeout(renderDiagram, 500));
+</script>
+</body>
+</html>
