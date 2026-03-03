@@ -1,8 +1,4 @@
-import { Hono } from 'hono';
-import { handle } from 'hono/vercel';
+import { getRequestListener } from '@hono/node-server';
 import app from '../src/app.js';
 
-const vercelApp = new Hono().basePath('/api');
-vercelApp.route('/', app);
-
-export default handle(vercelApp);
+export default getRequestListener(app.fetch);
