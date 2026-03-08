@@ -75,7 +75,3 @@ pnpm typecheck # 类型检查
 ## 部署
 
 项目通过 `api/[...route].ts` 配置 Vercel Serverless Function，直接连接 Vercel 即可部署。
-
-## License
-
-MIT
